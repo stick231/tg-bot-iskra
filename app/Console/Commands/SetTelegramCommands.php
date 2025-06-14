@@ -15,7 +15,7 @@ class SetTelegramCommands extends Command
         $commands = [
             ['command' => 'start', 'description' => 'Start bot'],
             ['command' => 'statistics', 'description' => 'Your statistics'],
-            ['command' => 'give_task', 'description' => 'Give task'],
+            ['command' => 'add_task', 'description' => 'Add task'],
             ['command' => 'show_task', 'description' => 'View your tasks'],
             ['command' => 'completed_task', 'description' => 'You complete task!']
         ];

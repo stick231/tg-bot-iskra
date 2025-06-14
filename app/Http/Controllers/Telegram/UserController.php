@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Telegram;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\UserRequest;
 use App\Models\Task;
 use App\Models\User;
 use App\Models\UserTask;
@@ -13,9 +12,13 @@ use Illuminate\Support\Facades\Log;
 
 class UserController extends Controller
 {
+    protected function promptForField(string $field): string{
+        return "";
+    }
+
     public function start($data)
     {        
-        $reply = "👋 *Hello!*
+        $message = "👋 *Hello!*
 I'm your personal assistant for self-development and motivation!
         
 💡 *How can I help you?*
@@ -34,18 +37,15 @@ Ready to improve yourself? Let's start right now! 💪";
         
 
         User::register($data);
-        Http::post("https://api.telegram.org/bot" . env('TG_TOKEN') . "/sendMessage", [
-            'chat_id' => $data['chat']['id'],
-            'text' => $reply,
-            'parse_mode' => 'Markdown'
-        ]); 
-        return response()->json(['status' => 'ok']);
+        $response = $this->handleRequest($data, $message);
+
+        return response()->json(['status' => $response['status']]);
     }
 
     public function statistics($data)
     {
         if($this->countCompletedTask($data) === 0){
-            $reply = "📊 *Your stats are empty...*
+            $message = "📊 *Your stats are empty...*
             You haven't completed any tasks yet. But that's easy to fix! 🚀
 
             💡 *Try starting right now!*
@@ -59,7 +59,7 @@ Ready to improve yourself? Let's start right now! 💪";
                 ? "Great job! You're already making good progress towards your goal, keep up the good work! 💪🔥" 
                 : "Not enough yet... Try to devote more time to tasks, and you will succeed! 🚀";
             
-                $reply = "📊 *Your statistic*\n\n".
+                $message = "📊 *Your statistic*\n\n".
                 "✅ *Most popular category:* $topCategory\n\n".
                 "⏳ *Average task completion time:* $averageTime\n\n".
                 "🏆 *Completed task:* $completedTasks\n\n".
@@ -68,11 +68,7 @@ Ready to improve yourself? Let's start right now! 💪";
                 "To get a new task, use the command: `/give_task`"; 
         }
 
-        Http::post("https://api.telegram.org/bot" . env('TG_TOKEN') . "/sendMessage", [
-            'chat_id' => $data['chat']['id'],
-            'text' => $reply,
-            'parse_mode' => 'Markdown'
-        ]);
+        $this->handleRequest($data, $message);
     }
 
     protected function averageExecutionTimeTask($data)
