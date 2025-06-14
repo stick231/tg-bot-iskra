@@ -10,7 +10,10 @@ class Task extends Model
     //
     public $fillable = [
         'title',
-        'category'
+        'category',
+        'remind_at',
+        'status',
+        'owner_id'
     ];
 
 

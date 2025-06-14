@@ -15,7 +15,16 @@ return new class extends Migration
             $table->id();
             $table->string('title');
             $table->string('category');
+            $table->date('remind_at');
+            $table->enum('status', ['in_progress', 'completed']);
+            $table->timestamp('completed_at')->nullable();
+            $table->unsignedBigInteger('owner_id');
             $table->timestamps();
+
+            $table->foreign('owner_id')
+                ->references('telegram_id')
+                ->on('users')
+                ->onDelete('cascade');
         });
     }
 

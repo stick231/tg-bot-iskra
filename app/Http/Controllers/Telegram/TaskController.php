@@ -6,56 +6,36 @@ use App\Http\Controllers\Controller;
 use App\Models\Task;
 use App\Models\UserTask;
 use App\Models\User;
+use App\Models\UserState;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 
 class TaskController extends Controller
 {
-    public function giveTask($data)
+
+    protected array $stateFields = ['title', 'category', 'remind_at'];
+
+    protected function promptForField(string $field): string
     {
-        $user = User::where('telegram_id', $data['from']['id'])->first();
-        $userTaskIds = UserTask::where('user_id', $user->id)->pluck('task_id')->toArray();
-        $randomTask = Task::whereNotIn('id', $userTaskIds)->inRandomOrder()->first();
+        return match ($field) {
+            'title'     => '📋 Enter your task title:',
+            'category'  => '🏷 Enter a category to help you track tasks more easily:',
+            'remind_at' => '⏰ Enter reminder date and time (e.g. 2025‑06‑15 14:00):',
+            default     => 'Enter value:',
+        };
+    }
 
-        if (!$randomTask) {
-            $message = "🎉 *Congratulations!* You have completed all available tasks. 
-Expect new tasks or try to complete something else on your own! 🚀";
-        } else {
-            if ($this->getActiveTask($user)) {
-                $message = "📌 *Your current task:* 
-                *" . $this->getActiveTask($user)->task->title . "*";
-            } else {
-                UserTask::create([
-                    'task_id' => $randomTask->id,
-                    'user_id' => $user->id,
-                    'status' => 'In work'
-                ]);
-        
-                $message = "🔥 *Your new task:*  
-                *" . $randomTask->title . "*  
-                Do it and don't forget to finish it with the command `/completed_task`!";
-            }
-        }
-        
-        $payload = [
-            'chat_id' => $data['chat']['id'],
-            'text' => $message,
-            'parse_mode' => 'Markdown',
-        ];
-        
-        if (!empty($randomtask)) {
-            $payload['reply_markup'] = json_encode([
-                'inline_keyboard' => [
-                    [
-                        ['text' => '✅', 'callback_data' => 'confirm_action']
-                    ]
-                ]
-            ]);
-        }
-        
-        Http::post("https://api.telegram.org/bot" . env('TG_TOKEN') . "/sendMessage", $payload);
+    public function add_task($data)
+    {
+        return $this->process($data, __FUNCTION__);
+    }
 
-        return response()->json(['text' => $message]);
+    protected function onStateComplete(UserState $state): void
+    {
+        Task::create($state->data);
+        $state->state = null;
+        $state->waiting_for = null;
+        $state->trigger_command = null;
+        $state->save();
     }
     
     protected function getActiveTask($user)
@@ -63,10 +43,10 @@ Expect new tasks or try to complete something else on your own! 🚀";
         return UserTask::where('user_id', $user->id)
             ->where('status', 'In work')
             ->with('task')
-            ->first();
+            ->get();
     }
 
-    public function showTask($data)
+    public function show_task($data) //rewrite with parsing
     {
         $user = User::where('telegram_id', $data['from']['id'])->first();
     
@@ -99,13 +79,7 @@ Expect new tasks or try to complete something else on your own! 🚀";
         return response()->json(['text' => $message]);
     }
     
-
-    public function changeTask()
-    {
-
-    }
-
-    public function completedTask($data, $callbackQuery = false)
+    public function completed_task($data, $callbackQuery = false)//rewrite with parsing
     {
         $user = User::where("telegram_id", $data['from']['id'])->first();
 
