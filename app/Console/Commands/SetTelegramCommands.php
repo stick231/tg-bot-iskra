@@ -16,7 +16,7 @@ class SetTelegramCommands extends Command
             ['command' => 'start', 'description' => 'Start bot'],
             ['command' => 'statistics', 'description' => 'Your statistics'],
             ['command' => 'add_task', 'description' => 'Add task'],
-            ['command' => 'show_task', 'description' => 'View your tasks'],
+            ['command' => 'show_tasks', 'description' => 'View your tasks'],
             ['command' => 'completed_task', 'description' => 'You complete task!']
         ];
         
