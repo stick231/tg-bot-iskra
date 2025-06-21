@@ -8,6 +8,7 @@ use App\Models\UserTask;
 use App\Models\User;
 use App\Models\UserState;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class TaskController extends Controller
 {
@@ -40,44 +41,64 @@ class TaskController extends Controller
     
     protected function getActiveTask($user)
     {
-        return UserTask::where('user_id', $user->id)
-            ->where('status', 'In work')
-            ->with('task')
+        return Task::where('owner_id', $user->telegram_id)
+            ->where('status', 'in_progress')
             ->get();
     }
 
-    public function show_task($data) //rewrite with parsing
+    public function show_tasks($data, $page = '') //rewrite with parsing
     {
         $user = User::where('telegram_id', $data['from']['id'])->first();
-    
-        $activeTaskTitle = $this->getActiveTask($user)?->task?->title ?? 'There is no active task 😔';
-        
-        $completedTaskIds = UserTask::where('status', 'Completed')
-            ->where('user_id', $user->id)
-            ->pluck('task_id');
-    
-        $completedTasks = Task::whereIn('id', $completedTaskIds)->get();
-    
-        $message = "📌 *Your current task:*\n";
-        $message .= $activeTaskTitle . "\n\n";
-    
-        if ($completedTasks->isNotEmpty()) {
-            $message .= "✅ *Your successfully tasks:*\n";
-            foreach ($completedTasks as $task) {
-                $message .= "▪️ " . $task->title . "\n";
-            }
-        } else {
-            $message .= "❌ You haven't completed any tasks yet. Start right now! 💪";
-        }
+        $activeTasks = $this->getActiveTask($user);
 
-        Http::post("https://api.telegram.org/bot" . env('TG_TOKEN') . "/sendMessage", [
-            'chat_id' => $data['chat']['id'],
-            'text' => $message,
-            'parse_mode' => 'Markdown',
-        ]);
-    
-        return response()->json(['text' => $message]);
+        $completedTaskIds = Task::where('status', 'completed')
+            ->where('owner_id', $user->telegram_id)
+            ->get();
+
+        $keyboard[] = [
+            [
+                'text'          => '⬅️ Назад',
+                'callback_data' => 'show:' . $page - 1, //if $page !== 1
+            ],
+            [
+                'text'          => '➡️ Вперед',
+                'callback_data' => 'tasks_list:' . $page + 1, //if $page have in db
+            ],
+
+        ];
+        $param = ['reply_markup' => ['inline_keyboard' => $keyboard]];
+        $this->handleRequest($data, 'task 1, task 2....', $param);
     }
+
+    //      $user = User::where('telegram_id', $data['from']['id'])->first();
+    
+        // $activeTaskTitle = $this->getActiveTask($user)?->task?->title ?? 'There is no active task 😔';
+        
+        // $completedTaskIds = UserTask::where('status', 'Completed')
+        //     ->where('user_id', $user->id)
+        //     ->pluck('task_id');
+    
+        // $completedTasks = Task::whereIn('id', $completedTaskIds)->get();
+    
+        // $message = "📌 *Your current task:*\n";
+        // $message .= $activeTaskTitle . "\n\n";
+    
+        // if ($completedTasks->isNotEmpty()) {
+        //     $message .= "✅ *Your successfully tasks:*\n";
+        //     foreach ($completedTasks as $task) {
+        //         $message .= "▪️ " . $task->title . "\n";
+        //     }
+        // } else {
+        //     $message .= "❌ You haven't completed any tasks yet. Start right now! 💪";
+        // }
+
+        // Http::post("https://api.telegram.org/bot" . env('TG_TOKEN') . "/sendMessage", [
+        //     'chat_id' => $data['chat']['id'],
+        //     'text' => $message,
+        //     'parse_mode' => 'Markdown',
+        // ]);
+    
+        // return response()->json(['text' => $message]);
     
     public function completed_task($data, $callbackQuery = false)//rewrite with parsing
     {

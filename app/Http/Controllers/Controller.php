@@ -15,13 +15,13 @@ abstract class Controller
 
     abstract protected function promptForField(string $field): string;
 
-    protected function handleRequest(array $data, string $message)
+    protected function handleRequest(array $data, string $message, $param = null)
     {
-        $response = Http::post("https://api.telegram.org/bot" . env('TG_TOKEN') . "/sendMessage", [
+        $response = Http::post("https://api.telegram.org/bot" . env('TG_TOKEN') . "/sendMessage", array_merge([
             'chat_id' => $data['chat']['id'],
             'text' => $message,
             'parse_mode' => 'Markdown',
-        ])->json();
+        ], $param))->json();
 
         if (isset($response['ok']) && $response['ok'] === true) {
             $response['status'] = 200;
