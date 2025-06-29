@@ -25,17 +25,12 @@ class TelegramController extends Controller
     public function handle(Request $request){
         $data = $request->all();
         
-        if (isset($data['callback_query'])) {
-            // handler callback button
-            return;
-        }
-
         if(isset($data['my_chat_member'])){
             return;
         }
         
         $text = $data['edited_message']['text'] ?? $data['message']['text'] ?? '';
-        $dataMessage = $data['message'] ?? $data['edited_message'] ?? null; 
+        $dataMessage = $data['message'] ?? $data['edited_message'] ?? $data['callback_query'] ?? null; 
 
         $userState = UserState::firstOrCreate(['telegram_id' => $dataMessage['from']['id']]);
         
@@ -50,13 +45,22 @@ class TelegramController extends Controller
         
     }
     
-    protected function dispatchCommand(string $command, $data, $text = "")
+    protected function dispatchCommand(string $command, $data)
     {
-        $controller = app()->make($this->commands[$command]);
-        $command = ltrim($command, '/');
-        if($command === '/'){
+        if ($command === '/') {
             return '';
         }
-        return $controller->$command($data);
+    
+        $method = $this->commands[$command] ?? null;
+    
+        if ($method === null) {
+            return '';
+        }
+    
+        $controller = app()->make($method);
+    
+        $methodName = ltrim($command, '/');
+    
+        return $controller->{$methodName}($data);
     }
 }
