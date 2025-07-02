@@ -4,9 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\UserState;
 use App\Services\TelegramCommandLoader;
+use App\Services\TelegramServices;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 
 class TelegramController extends Controller
 {
@@ -25,38 +24,43 @@ class TelegramController extends Controller
     public function handle(Request $request){
         $data = $request->all();
         
-        if (isset($data['callback_query'])) {
-            // handler callback button
-            return;
-        }
-
         if(isset($data['my_chat_member'])){
             return;
         }
         
         $text = $data['edited_message']['text'] ?? $data['message']['text'] ?? '';
-        $dataMessage = $data['message'] ?? $data['edited_message'] ?? null; 
+        $dataMessage = $data['message'] ?? $data['edited_message'] ?? $data['callback_query'] ?? null; //add button
 
         $userState = UserState::firstOrCreate(['telegram_id' => $dataMessage['from']['id']]);
         
+        $telegramService = new TelegramServices();
         if (isset($this->commands[$text])) {
             // input commands auth check, redirect to command /start
             $userState->update(['state' => null, 'trigger_command' => null, 'waiting_for' => null, 'data'=> []]);
-            return $this->dispatchCommand($text, $dataMessage);
+            return $this->dispatchCommand($text, $dataMessage, $telegramService);
         } elseif(isset($userState) || $userState->state === 'wait'){
-            $this->dispatchCommand("/" . $userState->trigger_command, $dataMessage);
+            $this->dispatchCommand("/" . $userState->trigger_command, $dataMessage, $telegramService);
         }
         //check state and wait message
-        
+        //add defaute response
     }
     
-    protected function dispatchCommand(string $command, $data, $text = "")
+    protected function dispatchCommand(string $command, $data, $telegramService)
     {
-        $controller = app()->make($this->commands[$command]);
-        $command = ltrim($command, '/');
-        if($command === '/'){
+        if ($command === '/') {
             return '';
         }
-        return $controller->$command($data);
+    
+        $method = $this->commands[$command] ?? null;
+    
+        if ($method === null) {
+            return '';
+        }
+    
+        $controller = app()->make($method);
+    
+        $methodName = ltrim($command, '/');
+    
+        return $controller->{$methodName}($data, $telegramService);
     }
 }
