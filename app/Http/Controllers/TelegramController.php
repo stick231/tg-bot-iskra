@@ -4,9 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\UserState;
 use App\Services\TelegramCommandLoader;
+use App\Services\TelegramServices;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 
 class TelegramController extends Controller
 {
@@ -30,22 +29,23 @@ class TelegramController extends Controller
         }
         
         $text = $data['edited_message']['text'] ?? $data['message']['text'] ?? '';
-        $dataMessage = $data['message'] ?? $data['edited_message'] ?? $data['callback_query'] ?? null; 
+        $dataMessage = $data['message'] ?? $data['edited_message'] ?? $data['callback_query'] ?? null; //add button
 
         $userState = UserState::firstOrCreate(['telegram_id' => $dataMessage['from']['id']]);
         
+        $telegramService = new TelegramServices();
         if (isset($this->commands[$text])) {
             // input commands auth check, redirect to command /start
             $userState->update(['state' => null, 'trigger_command' => null, 'waiting_for' => null, 'data'=> []]);
-            return $this->dispatchCommand($text, $dataMessage);
+            return $this->dispatchCommand($text, $dataMessage, $telegramService);
         } elseif(isset($userState) || $userState->state === 'wait'){
-            $this->dispatchCommand("/" . $userState->trigger_command, $dataMessage);
+            $this->dispatchCommand("/" . $userState->trigger_command, $dataMessage, $telegramService);
         }
         //check state and wait message
-        
+        //add defaute response
     }
     
-    protected function dispatchCommand(string $command, $data)
+    protected function dispatchCommand(string $command, $data, $telegramService)
     {
         if ($command === '/') {
             return '';
@@ -61,6 +61,6 @@ class TelegramController extends Controller
     
         $methodName = ltrim($command, '/');
     
-        return $controller->{$methodName}($data);
+        return $controller->{$methodName}($data, $telegramService);
     }
 }

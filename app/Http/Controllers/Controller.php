@@ -2,10 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Task;
 use App\Models\UserState;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 
 abstract class Controller
 {
@@ -13,13 +11,14 @@ abstract class Controller
 
     abstract protected function promptForField(string $field): string;
 
-    protected function handleRequest(array $data, string $message, $param = null)
+    protected function handleRequest(array $data, string $message, $param = [])
     {
+        $param = $param === [] ? ['reply_markup' => json_encode(['remove_keyboard' => true ])] : $param;
         $response = Http::post("https://api.telegram.org/bot" . env('TG_TOKEN') . "/sendMessage", array_merge([
-            'chat_id' => $data['chat']['id'],
+            'chat_id' => $data['chat']['id'] ?? $data['message']['chat']['id'],
             'text' => $message,
             'parse_mode' => 'Markdown',
-        ], $param ?? []))->json();
+        ], $param))->json();
 
         if (isset($response['ok']) && $response['ok'] === true) {
             $response['status'] = 200;
@@ -34,56 +33,31 @@ abstract class Controller
     {
     }
 
-    protected function handleState(UserState $state, $dataRequest, $custom_field): string
+    protected function handleState(UserState $state, $dataRequest, $custom_field)
     {
         $field = $state->waiting_for;
         $data  = $state->data ?? [];
         $data[$field] = $dataRequest['text'];
         $state->data = $data;
+        
+        $field_array = $custom_field === [] ? $this->stateFields : $custom_field;
+        
+        $idx = array_search($field, $field_array, true);
 
-
-        if(empty($custom_field)){
-            $idx = array_search($field, $this->stateFields, true);
-
-            if ($idx === count($this->stateFields) - 1) {
-                $data['owner_id'] = $dataRequest['from']['id'];
-                $data['status'] = 'in_progress';
-                $state->data = $data;
-                $response = $this->onStateComplete($state);
-
-                if(isset($response) || $response === true){
-                    return '✅ Successfully completed!';
-                }
+        if ($idx === count($field_array) - 1) {
+            $data['owner_id'] = $dataRequest['from']['id']; //rewrite
+            $data['status'] = 'in_progress'; //rewrite
+            $state->data = $data;
+            $response = $this->onStateComplete($state);
+            if(isset($response) || $response === true){
+                return '✅ Successfully completed!'; // change to adaptive response
             }
-
-            $next = $this->stateFields[$idx + 1];
-            $state->waiting_for = $next;
-            $state->save();
-
-            return $this->promptForField($next);
         }
-        else{
-            $idx = array_search($field, $custom_field, true);
+        $next = $field_array[$idx + 1];
+        $state->waiting_for = $next;
+        $state->save();
 
-            if ($idx === count($custom_field) - 1) {
-                $data['owner_id'] = $dataRequest['from']['id'];
-                $data['status'] = 'in_progress';
-                $state->data = $data;
-                $response = $this->onStateComplete($state);
-
-                if(isset($response) && $response === true){
-                    return '✅ Successfully completed!';
-                }
-
-                return '';
-            }
-
-            $next = $custom_field[$idx + 1];
-            $state->waiting_for = $next;
-            $state->save();
-
-            return $this->promptForField($next);
-        }
+        return $this->promptForField($next);//fix error callback_data
     }
 
 
@@ -102,21 +76,14 @@ abstract class Controller
             $state->save();
 
             $message = $this->promptForField($state->waiting_for);
+        } elseif(isset($data['message_response'])){
+            $message = $data['message_response'];
         } else {
             $message = $this->handleState($state, $data, $custom_field);
-            $message = $data['message_send'];
         }
         $param = isset($data['param']) ? $data['param'] : [];
 
-        Log::info($data);
-        Log::info($message);
-        Log::info($param);
         $response = $this->handleRequest($data, $message, $param);
-        return response()->json(['status' => $response['status']]);
+        return response()->json(['status' => $response['status'] ?? null]);
     }
-
-    // public function handleTasksPagination($data)
-    // {
-
-    // }
 }
