@@ -28,10 +28,10 @@ I'm your personal assistant for self-development and motivation!
 🔹 Support you and ensure that you meet your goals! 🚀
 
 🎯 *Commands to help you get started:*
-✅ *Get a task:* `/give_task`
+✅ *Add a task:* `/add_task`
 📊 *View statistics:* `/statistics`
 ✔️ *Complete the current task:* `/completed_task`
-📌 *View your task list:* `/show_task`
+📌 *View your task list:* `/show_tasks`
 
 Ready to improve yourself? Let's start right now! 💪";
 
