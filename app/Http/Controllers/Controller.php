@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\UserState;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 abstract class Controller
 {
@@ -61,14 +62,9 @@ abstract class Controller
     }
 
 
-    protected function process($data, string $triggerCommand, $custom_field = [])
-    {
-        $state = UserState::firstOrCreate(
-            ['telegram_id' => $data['from']['id']],
-            ['data' => [], 'waiting_for' => null, 'trigger_command' => null]
-        );
-
-        
+    protected function process($data, UserState $state, string $triggerCommand, $custom_field = [])
+    {        
+        Log::info($state->waiting_for);
         if (is_null($state->waiting_for)) {
             $state->state = 'wait';
             $state->trigger_command = $triggerCommand;
