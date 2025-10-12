@@ -65,11 +65,11 @@ A self‑hosted Telegram bot for task management: create tasks, set reminders, a
 - `/start` — register or welcome the user  
 - `/show_tasks` — list all your pending tasks  
 - `/add_task` — create a new task (uses interactive state flow)  
+- `/complete_task` — mark the last shown task as complete  
 
 ### In Development (🚧)
 
 - `/statistics` — display summary stats (total tasks, completed, pending)  
-- `/complete_task` — mark the last shown task as complete  
 
 ## 💡 Contributing
 
@@ -152,12 +152,12 @@ This project is licensed under the [MIT License](LICENSE).
 
 - `/start` — регистрация и приветствие  
 - `/show_tasks` — список активных задач  
-- `/add_task` — добавление новой задачи (интерактивный режим)  
+- `/add_task` — добавление новой задачи (интерактивный режим)
+- `/complete_task` — отметка задачи как выполненной   
 
 ### В разработке (🚧)
 
 - `/statistics` — статистика выполнения задач  
-- `/complete_task` — отметка задачи как выполненной  
 
 ## 💡 Участие в разработке
 
