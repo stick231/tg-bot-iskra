@@ -64,7 +64,6 @@ abstract class Controller
 
     protected function process($data, UserState $state, string $triggerCommand, $custom_field = [])
     {        
-        Log::info($state->waiting_for);
         if (is_null($state->waiting_for)) {
             $state->state = 'wait';
             $state->trigger_command = $triggerCommand;

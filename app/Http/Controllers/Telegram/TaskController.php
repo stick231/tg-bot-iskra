@@ -4,10 +4,7 @@ namespace App\Http\Controllers\Telegram;
 
 use App\Http\Controllers\Controller;
 use App\Models\Task;
-use App\Models\UserTask;
-use App\Models\User;
 use App\Models\UserState;
-use App\Services\TaskServives;
 use App\Services\TelegramServices;
 use Illuminate\Support\Facades\Log;
 
@@ -21,18 +18,33 @@ class TaskController extends Controller
         return match ($field) {
             'title'     => '📋 Enter your task title:',
             'category'  => '🏷 Enter a category to help you track tasks more easily:',
-            'remind_at' => '⏰ Enter reminder date and time (e.g. 2025‑06‑15 14:00):',
+            'remind_at' => '⏰ Enter reminder date and time (hours:minutes, day + time, or full date + time).  
+Examples: 14:30 | 15 14:30 | 2025.11.20 14:30',
             'status'    => 'Choice status task for search'
         };
     }
 
-    public function add_task($data)
+    public function add_task($data, TelegramServices $telegramServices)
     {
         $state = UserState::firstOrCreate(
             ['telegram_id' => $data['from']['id']],
             ['data' => [], 'waiting_for' => null, 'trigger_command' => null]
         );
 
+        if($state->waiting_for == 'remind_at'){
+            try{
+                $data['text'] = $telegramServices->parseFlexibleDateTime($data['text']);
+                Log::info($data['text']);
+                if($data['text'] === null){
+                    throw new \Exception("Некорректная дата");
+                    return $this->handleRequest($data, 'Incorrect date/time format or this date/time is past. Try, for example: 14:30 or 15.10 16:00');
+                }
+            } catch(\Exception $e){
+                Log::error($e);
+                return $this->handleRequest($data, 'Incorrect date/time format or this date/time is past. Try, for example: 14:30 or 15.10 16:00');
+            }
+        }
+        
         return $this->process($data, $state, __FUNCTION__);
     }
 
@@ -58,6 +70,7 @@ class TaskController extends Controller
 
     public function show_tasks($data, TelegramServices $telegramServices)
     {
+        // return;
         $state = UserState::firstOrCreate(
             ['telegram_id' => $data['from']['id']],
             ['data' => [], 'waiting_for' => null, 'trigger_command' => null]
@@ -72,8 +85,8 @@ class TaskController extends Controller
                     'keyboard' => [
                         [['text' => 'In Progress'], ['text' => 'Completed']],
                     ],
-                'resize_keyboard' => true,  // клавиатура подгоняется под экран
-                'one_time_keyboard' => true, // если true — исчезает после нажатия
+                'resize_keyboard' => true,
+                'one_time_keyboard' => true, 
                 ])
             ];
         };
@@ -81,9 +94,9 @@ class TaskController extends Controller
         return $this->process($data, $state, __FUNCTION__, ['status', 'callback_data']);
     }
 
-    public function complete_task($data, TelegramServices $telegramServices) //rewrite with parsing
+    public function complete_task($data, TelegramServices $telegramServices) 
     {
-        if(isset($data['data'])){
+        if(isset($data['data']) && explode(':', $data['data'])[0] == 'TaskComplete'){   
             $idTask = explode(':', $data['data'])[1];
 
             $task = Task::find($idTask);
@@ -93,14 +106,14 @@ class TaskController extends Controller
                     'message_response' => '❌ Задача не найдена.'
                 ];
             }
-
             $task->update([
                 'status' => 'completed',
-                'completed_at' => now() // если есть поле даты завершения
+                'completed_at' => now()
             ]);
+            $task->save();
+            
 
-            $this->handleRequest($data, '✅Task "' . $task->title . '" is marked as completed.');
-            return;
+            return $this->handleRequest($data, '✅Task "' . $task->title . '" is marked as completed.');
         }
 
         $state = UserState::firstOrCreate(
