@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\UserState;
+use App\Services\TelegramServices;
+use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -58,7 +60,21 @@ abstract class Controller
         $state->waiting_for = $next;
         $state->save();
 
-        return $this->promptForField($next);//fix error callback_data
+        if ($next === 'callback_data') {
+            $telegramServices = app(\App\Services\TelegramServices::class);
+            $telegramController = app(\App\Http\Controllers\TelegramController::class);
+            $response = $telegramController->dispatchCommand('/' . $state->trigger_command, $dataRequest, $telegramServices);
+
+            if ($response instanceof \Illuminate\Http\JsonResponse) {
+                $payload = $response->getData(true); 
+                return $payload['message_response'] ?? '';
+            }
+        
+            return is_string($response) ? $response : '';
+        }
+
+
+        return $this->promptForField($next);
     }
 
 
@@ -69,11 +85,14 @@ abstract class Controller
             $state->trigger_command = $triggerCommand;
             $state->waiting_for   = empty($custom_field) ? $this->stateFields[0] : $custom_field[0];
             $state->save();
+            Log::info('STATE NULL');
 
             $message = $this->promptForField($state->waiting_for);
         } elseif(isset($data['message_response'])){
             $message = $data['message_response'];
+            Log::info('MESSAGE RESPONSE');
         } else {
+            Log::info("MESSAGE NULL && STATE !== NULL");
             $message = $this->handleState($state, $data, $custom_field);
         }
         $param = isset($data['param']) ? $data['param'] : [];

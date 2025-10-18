@@ -20,7 +20,8 @@ class TaskController extends Controller
             'category'  => '🏷 Enter a category to help you track tasks more easily:',
             'remind_at' => '⏰ Enter reminder date and time (hours:minutes, day + time, or full date + time).  
 Examples: 14:30 | 15 14:30 | 2025.11.20 14:30',
-            'status'    => 'Choice status task for search'
+            'status'    => 'Choice status task for search',
+            // 'callback_data' => '',   
         };
     }
 
@@ -70,12 +71,11 @@ Examples: 14:30 | 15 14:30 | 2025.11.20 14:30',
 
     public function show_tasks($data, TelegramServices $telegramServices)
     {
-        // return;
         $state = UserState::firstOrCreate(
             ['telegram_id' => $data['from']['id']],
             ['data' => [], 'waiting_for' => null, 'trigger_command' => null]
         );
-        
+
         $page = isset($data['data']) ? explode(':', $data['data'])[1] : 1;
 
         $data = $state->waiting_for === 'callback_data' ? $telegramServices->paginateTaskShow($data, $page, $state) : $data;
