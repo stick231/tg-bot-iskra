@@ -6,6 +6,7 @@ use App\Models\UserState;
 use App\Services\TelegramCommandLoader;
 use App\Services\TelegramServices;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class TelegramController extends Controller
 {
@@ -22,6 +23,7 @@ class TelegramController extends Controller
     }
 
     public function handle(Request $request){
+        // return;  
         $data = $request->all();
         
         if(isset($data['my_chat_member'])){

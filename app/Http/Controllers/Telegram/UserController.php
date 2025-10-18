@@ -5,10 +5,6 @@ namespace App\Http\Controllers\Telegram;
 use App\Http\Controllers\Controller;
 use App\Models\Task;
 use App\Models\User;
-use App\Models\UserTask;
-use Carbon\Carbon;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 
 class UserController extends Controller
 {
@@ -47,6 +43,7 @@ Ready to improve yourself? Let's start right now! 💪";
     {
         return;
         if ($this->countCompletedTask($data) === 0) {
+            // пока у тебя есть $count не выполненных заданий
             $message = "📊 *Your stats are empty...*
             You haven't completed any tasks yet. But that's easy to fix! 🚀
 
@@ -76,57 +73,56 @@ Ready to improve yourself? Let's start right now! 💪";
     protected function averageExecutionTimeTask($data)
     {
         $user = User::where('telegram_id', $data['from']['id'])->first();
-        $userTask = UserTask::where('user_id', $user->id)
-            ->whereNotNull('completed_at')
-            ->where('status', 'Completed')
-            ->get();
+        // $userTask = UserTask::where('user_id', $user->id)
+        //     ->whereNotNull('completed_at')
+        //     ->where('status', 'Completed')
+        //     ->get();
 
-        $difference = 0;
+        // $difference = 0;
 
-        if (count($userTask) > 0) {
-            foreach ($userTask as $task) {
-                $completedAt = Carbon::parse($task->completed_at);
-                $createdAt = Carbon::parse($task->created_at);
+        // if (count($userTask) > 0) {
+        //     foreach ($userTask as $task) {
+        //         $completedAt = Carbon::parse($task->completed_at);
+        //         $createdAt = Carbon::parse($task->created_at);
 
-                $difference = $createdAt->diffInMinutes($completedAt);
-            }
+        //         $difference = $createdAt->diffInMinutes($completedAt);
+        //     }
 
-            $averageTime = $difference / count($userTask);
-        } else {
-            return null;
-        }
+        //     $averageTime = $difference / count($userTask);
+        // } else {
+        //     return null;
+        // }
 
-        Log::info($averageTime < 1
-            ? ($averageTime * 60) . " seconds"
-            : ($averageTime < 960
-                ? "$averageTime minutes"
-                : ($averageTime / 60) . " hours"
-            ));
-        return $averageTime < 1
-            ? ($averageTime * 60) . " seconds"
-            : ($averageTime < 960
-                ? "$averageTime minutes"
-                : ($averageTime / 60) . " hours"
-            );
+        // Log::info($averageTime < 1
+        //     ? ($averageTime * 60) . " seconds"
+        //     : ($averageTime < 960
+        //         ? "$averageTime minutes"
+        //         : ($averageTime / 60) . " hours"
+        //     ));
+        // return $averageTime < 1
+        //     ? ($averageTime * 60) . " seconds"
+        //     : ($averageTime < 960
+        //         ? "$averageTime minutes"
+        //         : ($averageTime / 60) . " hours"
+        //     );
     }
 
     protected function countCompletedTask($data)
     {
-        $user = User::where('telegram_id', $data['from']['id'])->first();
-        $userTask = UserTask::where('user_id', $user->id)
-            ->where('status', 'сompleted')
-            ->get();
-        return count($userTask);
+        // $user = User::where('telegram_id', $data['from']['id'])->first();
+        // $userTask = UserTask::where('user_id', $user->id)
+        //     ->where('status', 'сompleted')
+        //     ->get();
+        // return count($userTask);
     }
 
     protected function greaterStatus($data)
     {
         return Task::select('category')
-            ->withCount(['userTask' => function ($query) use ($data) {
-                $query->whereNotNull('completed_at');
-                $query->where('user_id', $data['from']['id']);
-            }])
-            ->orderByDesc('user_task_count')
+            ->where('owner_id', $data['from']['id'])
+            ->whereNotNull('completed_at')
+            ->groupBy('category')
+            ->orderByRaw('COUNT(*) DESC')
             ->first()?->category;
     }
 }
