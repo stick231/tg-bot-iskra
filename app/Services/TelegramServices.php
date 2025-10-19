@@ -43,6 +43,7 @@ class TelegramServices{
         $todayTasks = [];
         $yesterdayTasks = [];
         $tomorrowTasks = [];
+        $futureTasks = [];
         $otherTasks = [];
 
         foreach ($tasks as $task) {
@@ -55,10 +56,14 @@ class TelegramServices{
                     $otherTasks[] = $task;
                 }
             } elseif ($status === 'in_progress') {
-                if ($task->remind_at?->isToday()) {
+                if (!$task->remind_at) {
+                    $otherTasks[] = $task;
+                } elseif ($task->remind_at->isToday()) {
                     $todayTasks[] = $task;
-                } elseif ($task->remind_at?->isTomorrow()) {
+                } elseif ($task->remind_at->isTomorrow()) {
                     $tomorrowTasks[] = $task;
+                } elseif ($task->remind_at->isFuture()) {
+                    $futureTasks[] = $task;
                 } else {
                     $otherTasks[] = $task;
                 }
@@ -69,14 +74,14 @@ class TelegramServices{
             if ($todayTasks) {
                 $message .= "\n*✅ Completed Today:*\n";
                 foreach ($todayTasks as $task) {
-                    $message .= "• {$task->title}\n";
+                    $message .= "• {$this->escapeMarkdownV2($task->title)}\n";
                 }
             }
 
             if ($yesterdayTasks) {
                 $message .= "\n*📅 Completed Yesterday:*\n";
                 foreach ($yesterdayTasks as $task) {
-                    $message .= "• {$task->title}\n";
+                    $message .= "• {$this->escapeMarkdownV2($task->title)}\n";
                 }
             }
 
@@ -84,7 +89,7 @@ class TelegramServices{
                 $message .= "\n*🗓 Earlier Tasks:*\n";
                 foreach ($otherTasks as $task) {
                     $formattedDate = $task->completed_at?->format('M d, H:i');
-                    $message .= "• {$task->title} _(⏰ {$formattedDate})_\n";
+                    $message .= "• {$this->escapeMarkdownV2($task->title)} _(⏰ {$formattedDate})_\n";
                 }
             }
 
@@ -93,7 +98,7 @@ class TelegramServices{
                 $message .= "\n*🕓 Due Today:*\n";
                 foreach ($todayTasks as $task) {
                     $formattedTime = $task->remind_at?->format('H:i');
-                    $message .= "• {$task->title} _(⏰ {$formattedTime})_\n";
+                    $message .= "• {$this->escapeMarkdownV2($task->title)} _(⏰ {$formattedTime})_\n";
                 }
             }
 
@@ -101,15 +106,24 @@ class TelegramServices{
                 $message .= "\n*📅 Due Tomorrow:*\n";
                 foreach ($tomorrowTasks as $task) {
                     $formattedTime = $task->remind_at?->format('H:i');
-                    $message .= "• {$task->title} _(⏰ {$formattedTime})_\n";
+                    $message .= "• {$this->escapeMarkdownV2($task->title)} _(⏰ {$formattedTime})_\n";
+                }
+            }
+
+            if ($futureTasks) {
+                $message .= "\n*🗓 Upcoming Tasks:*\n";
+                foreach ($futureTasks as $task) {
+                    $formattedDate = $task->remind_at?->format('M d, H:i');
+                    $message .= "• {$this->escapeMarkdownV2($task->title)} _(⏰ {$formattedDate})_\n";
                 }
             }
 
             if ($otherTasks) {
-                $message .= "\n*🗓 Upcoming Tasks:*\n";
+                $message .= "\n*⚠️ Overdue / No date:*\n";
                 foreach ($otherTasks as $task) {
                     $formattedDate = $task->remind_at?->format('M d, H:i');
-                    $message .= "• {$task->title} _(⏰ {$formattedDate})_\n";
+                    $datePart = $formattedDate ? " _(⏰ {$formattedDate})_" : '';
+                    $message .= "• {$this->escapeMarkdownV2($task->title)}{$datePart}\n";
                 }
             }
         }
@@ -160,7 +174,7 @@ class TelegramServices{
         $row = [];
         foreach ($tasks as $task) {
             $row[] = [
-                'text' => $task->title,
+                'text' => $this->escapeMarkdownV2($task->title),
                 'callback_data' => 'TaskComplete:' . $task->id
             ];
 
@@ -251,4 +265,13 @@ Choose a task from the list below to update its status to *completed*.'; // add 
         }
     }
 
+    public function escapeMarkdownV2(string $text): string
+    {
+        $chars = ['\\','_','*','[',']','(',')','~','`','>','#','+','-','=','|','{','}','.','!'];
+
+        foreach($chars as $ch){
+            $text = str_replace($ch, '\\' . $ch, $text);
+        }
+        return $text;
+    }
 }
