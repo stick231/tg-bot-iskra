@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
@@ -22,9 +21,4 @@ class Task extends Model
         'completed_at' => 'datetime',
         'remind_at' => 'datetime'
     ];
-
-    public function userTask() : HasMany
-    {
-        return $this->hasMany(UserTask::class);
-    }
 }
