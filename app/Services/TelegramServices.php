@@ -25,7 +25,7 @@ class TelegramServices{
 
         $tasks = Task::where('owner_id', $user->telegram_id)
                      ->where('status', $status)
-                     ->orderBy($status === 'in_progress' ? 'remind_at' : 'completed_at', 'desc')
+                     ->orderBy($status === 'in_progress' ? 'start_at' : 'completed_at', 'desc')
                      ->paginate(6, ['*'], 'page', $page);
 
                      
@@ -56,13 +56,13 @@ class TelegramServices{
                     $otherTasks[] = $task;
                 }
             } elseif ($status === 'in_progress') {
-                if (!$task->remind_at) {
+                if (!$task->start_at) {
                     $otherTasks[] = $task;
-                } elseif ($task->remind_at->isToday()) {
+                } elseif ($task->start_at->isToday()) {
                     $todayTasks[] = $task;
-                } elseif ($task->remind_at->isTomorrow()) {
+                } elseif ($task->start_at->isTomorrow()) {
                     $tomorrowTasks[] = $task;
-                } elseif ($task->remind_at->isFuture()) {
+                } elseif ($task->start_at->isFuture()) {
                     $futureTasks[] = $task;
                 } else {
                     $otherTasks[] = $task;
@@ -97,33 +97,48 @@ class TelegramServices{
             if ($todayTasks) {
                 $message .= "\n*🕓 Due Today:*\n";
                 foreach ($todayTasks as $task) {
-                    $formattedTime = $task->remind_at?->format('H:i');
-                    $message .= "• {$this->escapeMarkdownV2($task->title)} _(⏰ {$formattedTime})_\n";
+                    $formattedTimeStart = $task->start_at?->format('H:i');
+                    $formattedTimeEnd = $task->end_at?->format('H:i');
+
+                    $message .= "• {$this->escapeMarkdownV2($task->title)} _(⏰ {$formattedTimeStart}" 
+                                . ($formattedTimeEnd ? " - {$formattedTimeEnd}" : "") 
+                                . ")_\n";
                 }
             }
 
             if ($tomorrowTasks) {
                 $message .= "\n*📅 Due Tomorrow:*\n";
                 foreach ($tomorrowTasks as $task) {
-                    $formattedTime = $task->remind_at?->format('H:i');
-                    $message .= "• {$this->escapeMarkdownV2($task->title)} _(⏰ {$formattedTime})_\n";
+                    $formattedTimeStart = $task->start_at?->format('H:i');
+                    $formattedTimeEnd = $task->end_at?->format('H:i');
+                                    
+                    $message .= "• {$this->escapeMarkdownV2($task->title)} _(⏰ {$formattedTimeStart}" 
+                                . ($formattedTimeEnd ? " - {$formattedTimeEnd}" : "") 
+                                . ")_\n";
                 }
             }
 
             if ($futureTasks) {
                 $message .= "\n*🗓 Upcoming Tasks:*\n";
                 foreach ($futureTasks as $task) {
-                    $formattedDate = $task->remind_at?->format('M d, H:i');
-                    $message .= "• {$this->escapeMarkdownV2($task->title)} _(⏰ {$formattedDate})_\n";
+                    $formattedTimeStart = $task->start_at?->format('M d, H:i');
+                    $formattedTimeEnd = $task->end_at?->format('M d, H:i');
+                                    
+                    $message .= "• {$this->escapeMarkdownV2($task->title)} _(⏰ {$formattedTimeStart}" 
+                                . ($formattedTimeEnd ? " - {$formattedTimeEnd}" : "") 
+                                . ")_\n";
                 }
             }
 
             if ($otherTasks) {
                 $message .= "\n*⚠️ Overdue / No date:*\n";
                 foreach ($otherTasks as $task) {
-                    $formattedDate = $task->remind_at?->format('M d, H:i');
-                    $datePart = $formattedDate ? " _(⏰ {$formattedDate})_" : '';
-                    $message .= "• {$this->escapeMarkdownV2($task->title)}{$datePart}\n";
+                    $formattedDateStart = $task->start_at?->format('M d, H:i');
+                    $formattedDateEndAt = $task->end_at?->format('M d, H:i');
+                    $datePart = $formattedDateStart ? " _(⏰ {$formattedDateStart})_" : '';
+                    $message .= "• {$this->escapeMarkdownV2($task->title)} _(⏰ {$formattedTimeStart}" 
+                                . ($formattedTimeEnd ? " - {$formattedTimeEnd}" : "") 
+                                . ")_\n";
                 }
             }
         }
@@ -166,7 +181,7 @@ class TelegramServices{
 
         $tasks = Task::where('owner_id', $user->telegram_id)
                      ->where('status', $status)
-                     ->orderBy('remind_at', 'desc')
+                     ->orderBy('start_at', 'desc')
                      ->paginate(6, ['*'], 'page', $page);
 
         $keyboard = [];
@@ -212,8 +227,25 @@ Choose a task from the list below to update its status to *completed*.'; // add 
         return $data; 
     }
 
-    public function parseFlexibleDateTime(string $input): ?string
+    public function parseFlexibleDateTime(string $input)
     {
+        $inputParts = preg_split('/\s*[-to—]\s*/i', trim($input));
+
+
+        $partsStart = preg_split('/[\s\.:\/]+/', trim($inputParts[0] ?? null));
+        $partsEnd = preg_split('/[\s\.:\/]+/', trim($inputParts[1] ?? null));
+
+
+        $partsStart = array_filter($partsStart, fn($p) => $p !== '');
+        $partsEnd = array_filter($partsEnd, fn($p) => $p !== '');
+
+        $startAt = $this->formatingDate($partsStart);
+        $end_at = $partsEnd ? $this->formatingDate($partsEnd) : null;
+
+        return [$startAt, $end_at];
+    }
+
+    public function formatingDate($parts){
         $now = Carbon::now();
 
         $min = 0;
@@ -221,14 +253,6 @@ Choose a task from the list below to update its status to *completed*.'; // add 
         $day = $now->day;
         $month = $now->month;
         $year = $now->year;
-
-        $parts = preg_split('/[\s\.:\/-]+/', trim($input));
-
-        $parts = array_filter($parts, fn($p) => $p !== '');
-
-        if (empty($parts) || count($parts) < 2 || count($parts) > 5) {
-            throw new \Exception("Invalid date/time format");
-        }
 
         try {
             switch (count($parts)) {
@@ -244,6 +268,10 @@ Choose a task from the list below to update its status to *completed*.'; // add 
                 case 5:
                     [$year, $month, $day, $hour, $min] = array_map('intval', $parts);
                     break;
+            }
+
+            if (empty($parts) || count($parts) < 2 || count($parts) > 5) {
+                throw new \Exception("Invalid date/time format");
             }
 
             if ($hour < 0 || $hour > 23 || $min < 0 || $min > 59) {
@@ -265,6 +293,7 @@ Choose a task from the list below to update its status to *completed*.'; // add 
         }
     }
 
+
     public function escapeMarkdownV2(string $text): string
     {
         $chars = ['\\','_','*','[',']','(',')','~','`','>','#','+','-','=','|','{','}','.','!'];
@@ -273,5 +302,19 @@ Choose a task from the list below to update its status to *completed*.'; // add 
             $text = str_replace($ch, '\\' . $ch, $text);
         }
         return $text;
+    }
+
+    public function getTaskReminders()
+    {
+        $targetTime = Carbon::now()->copy()->addMinutes(30);
+
+        $tasks = Task::whereBetween('start_at', 
+            [
+                $targetTime->copy()->subMinute(),
+                $targetTime->copy()->addMinute()
+            ],
+        )->get();
+        
+        return $tasks;
     }
 }

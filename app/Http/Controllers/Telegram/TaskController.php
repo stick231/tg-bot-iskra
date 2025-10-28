@@ -10,16 +10,17 @@ use Illuminate\Support\Facades\Log;
 
 class TaskController extends Controller
 {
-
-    protected array $stateFields = ['title', 'category', 'remind_at'];
+    protected array $stateFields = ['title', 'category', 'datetime'];
 
     protected function promptForField(string $field): string
     {
         return match ($field) {
             'title'     => '📋 Enter your task title:',
             'category'  => '🏷 Enter a category to help you track tasks more easily:',
-            'remind_at' => '⏰ Enter reminder date and time (hours:minutes, day + time, or full date + time).  
-Examples: 14:30 | 15 14:30 | 2025.11.20 14:30',
+            'datetime'  => '⏰ Enter start and/or end date and time. 
+Examples: 
+- Only start: 14:30 | 15 14:30 | 2025.11.20 14:30
+- Start and end: 2025.11.20 14:30 - 2025.11.20 16:00',
             'status'    => 'Choice status task for search',
             // 'callback_data' => '',   
         };
@@ -27,19 +28,16 @@ Examples: 14:30 | 15 14:30 | 2025.11.20 14:30',
 
     public function add_task($data, TelegramServices $telegramServices)
     {
+        // return;
         $state = UserState::firstOrCreate(
             ['telegram_id' => $data['from']['id']],
             ['data' => [], 'waiting_for' => null, 'trigger_command' => null]
         );
 
-        if($state->waiting_for == 'remind_at'){
+        if($state->waiting_for == 'datetime'){
             try{
-                $data['text'] = $telegramServices->parseFlexibleDateTime($data['text']);
+                $data['datetimeValue'] = $telegramServices->parseFlexibleDateTime($data['text']);
                 Log::info($data['text']);
-                if($data['text'] === null){
-                    throw new \Exception("Некорректная дата");
-                    return $this->handleRequest($data, 'Incorrect date/time format or this date/time is past. Try, for example: 14:30 or 15.10 16:00');
-                }
             } catch(\Exception $e){
                 Log::error($e);
                 return $this->handleRequest($data, 'Incorrect date/time format or this date/time is past. Try, for example: 14:30 or 15.10 16:00');
@@ -113,7 +111,7 @@ Examples: 14:30 | 15 14:30 | 2025.11.20 14:30',
             $task->save();
             
 
-            return $this->handleRequest($data, '✅Task "' . $task->title . '" is marked as completed.');
+            return $this->handleRequest($data, '✅Task "' . $telegramServices->escapeMarkdownV2($task->title) . '" is marked as completed.');
         }
 
         $state = UserState::firstOrCreate(

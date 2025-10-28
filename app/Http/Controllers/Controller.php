@@ -40,7 +40,12 @@ abstract class Controller
     {
         $field = $state->waiting_for;
         $data  = $state->data ?? [];
-        $data[$field] = $dataRequest['text'];
+        if($field == 'datetime' && isset($dataRequest['datetimeValue'])){
+            $data['start_at'] = $dataRequest['datetimeValue'][0];
+            $data['end_at'] = $dataRequest['datetimeValue'][1];
+        }else{
+            $data[$field] = $dataRequest['text'];
+        }
         $state->data = $data;
         
         $field_array = $custom_field === [] ? $this->stateFields : $custom_field;

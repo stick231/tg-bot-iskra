@@ -23,14 +23,10 @@ class User extends Authenticatable
         'telegram_id',
         'username',
         'first_name',
+        'chat_id',
         'last_name'
     ];
 
-
-    public function tasks(): HasMany
-    {
-        return $this->hasMany(UserTask::class);
-    }
 
     public static function register($data)
     {
@@ -39,6 +35,7 @@ class User extends Authenticatable
             'username' => $data['from']['username'] ?? null,
             'first_name' => $data['from']['first_name'] ?? null,
             'last_name' => $data['from']['last_name'] ?? null,
+            'chat_id' => $data['chat']['id']
         ];
 
         if (self::identification($data)) {

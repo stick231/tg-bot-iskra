@@ -15,7 +15,8 @@ return new class extends Migration
             $table->id();
             $table->string('title');
             $table->string('category');
-            $table->datetimes('remind_at');
+            $table->datetime('start_at');
+            $table->datetime('end_at')->nullable();
             $table->enum('status', ['in_progress', 'completed']);
             $table->timestamp('completed_at')->nullable();
             $table->unsignedBigInteger('owner_id');
