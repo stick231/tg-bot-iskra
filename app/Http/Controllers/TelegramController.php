@@ -23,9 +23,8 @@ class TelegramController extends Controller
     }
 
     public function handle(Request $request){
-        // return;  
+        // return;
         $data = $request->all();
-        
         if(isset($data['my_chat_member'])){
             return;
         }

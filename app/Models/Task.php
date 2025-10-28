@@ -11,7 +11,8 @@ class Task extends Model
     public $fillable = [
         'title',
         'category',
-        'remind_at',
+        'start_at',
+        'end_at',
         'status',
         'owner_id',
         'completed_at'
@@ -19,6 +20,12 @@ class Task extends Model
 
     public $casts = [
         'completed_at' => 'datetime',
-        'remind_at' => 'datetime'
+        'start_at' => 'datetime',
+        'end_at' => 'datetime'
     ];
+
+    public function owner()
+    {
+        return $this->belongsTo(User::class, 'owner_id');
+    }
 }
