@@ -23,9 +23,8 @@ class SendTaskRemindersJob implements ShouldQueue
     /**
      * Execute the job.
      */
-    public function handle(TelegramServices $telegramServices): void
+    public function handle(TelegramServices $telegramServices): void //TelegramServices $telegramServices
     {
-        Log::info('test');
         $tasks = $telegramServices->getTaskReminders();
         Log::info($tasks);
         foreach($tasks as $task){
