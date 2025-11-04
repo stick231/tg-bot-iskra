@@ -15,20 +15,16 @@ class TaskController extends Controller
     protected function promptForField(string $field): string
     {
         return match ($field) {
-            'title'     => '📋 Enter your task title:',
-            'category'  => '🏷 Enter a category to help you track tasks more easily:',
-            'datetime'  => '⏰ Enter start and/or end date and time. 
-Examples: 
-- Only start: 14:30 | 15 14:30 | 2025.11.20 14:30
-- Start and end: 2025.11.20 14:30 - 2025.11.20 16:00',
-            'status'    => 'Choice status task for search',
-            // 'callback_data' => '',   
+            'title'    => "📋 *Введите название задачи:*\nДайте задаче короткое и понятное название, чтобы её легко было запомнить.",
+            'category' => "🏷 *Введите категорию задачи:*\nЭто поможет вам организовать и отслеживать задачи по типу (например, Работа, Здоровье, Учёба).",
+            'datetime' => "⏰ *Введите дату и/или время начала и окончания:*\nПримеры:\n- Только начало: `14:30` | `15 14:30` | `2025.11.20 14:30`\n- Начало и конец: `2025.11.20 14:30 - 2025.11.20 16:00`",
+            'status'   => "⚙️ *Выберите статус задачи:*\nУкажите текущий статус, чтобы легче фильтровать и отслеживать задачи.",
         };
+
     }
 
     public function add_task($data, TelegramServices $telegramServices)
     {
-        // return;
         $state = UserState::firstOrCreate(
             ['telegram_id' => $data['from']['id']],
             ['data' => [], 'waiting_for' => null, 'trigger_command' => null]

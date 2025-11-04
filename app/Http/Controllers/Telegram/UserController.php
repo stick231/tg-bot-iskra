@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Telegram;
 use App\Http\Controllers\Controller;
 use App\Models\Task;
 use App\Models\User;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
 
 class UserController extends Controller
 {
@@ -15,21 +17,25 @@ class UserController extends Controller
 
     public function start($data)
     {
-        $message = "👋 *Hello!*
-I'm your personal assistant for self-development and motivation!
+        $message = "📋 *Task Tracker Bot*
 
-💡 *How can I help you?*
-🔹 I'll give you *interesting tasks* on self-development, sports and other habits.
-🔹 Track your progress and keep *detailed statistics*.
-🔹 Support you and ensure that you meet your goals! 🚀
+👋 *Привет!*  
+Я — твой личный помощник для управления задачами и контроля прогресса.
 
-🎯 *Commands to help you get started:*
-✅ *Add a task:* `/add_task`
-📊 *View statistics:* `/statistics`
-✔️ *Complete the current task:* `/completed_task`
-📌 *View your task list:* `/show_tasks`
+💡 *Что я умею:*  
+🔹 Помогаю создавать и организовывать задачи.  
+🔹 Напоминаю о дедлайнах и невыполненных делах.  
+🔹 Отслеживаю выполненные задачи и показываю статистику.  
+🔹 Помогаю держать фокус и не терять мотивацию! 🚀
 
-Ready to improve yourself? Let's start right now! 💪";
+🎯 *Основные команды:*  
+➕ *Добавить задачу:* `/add_task`  
+📋 *Список задач:* `/show_tasks`  
+✔️ *Отметить выполненной:* `/completed_task`  
+📊 *Статистика и прогресс:* `/statistics`
+
+Готов навести порядок в делах?  
+*Начнём прямо сейчас!* 💪";
 
 
 
@@ -41,88 +47,102 @@ Ready to improve yourself? Let's start right now! 💪";
 
     public function statistics($data)
     {
-        return;
-        if ($this->countCompletedTask($data) === 0) {
-            // пока у тебя есть $count не выполненных заданий
-            $message = "📊 *Your stats are empty...*
-            You haven't completed any tasks yet. But that's easy to fix! 🚀
+        $completedTasks = $this->countCompletedTask($data);
 
-            💡 *Try starting right now!*
-            Get your first task with the command:`/give_task`";
+        if ($completedTasks === 0) {
+            $message = "📊 *Ваша статистика пуста...*\n" .
+                "Вы ещё не выполнили ни одной задачи, но это легко исправить! 🚀\n\n" .
+                "💡 *Начните формировать полезные привычки прямо сейчас!*\n" .
+                "Создайте первую задачу с помощью команды: `/give_task`";
         } else {
-            $completedTasks = $this->countCompletedTask($data);
             $averageTime = $this->averageExecutionTimeTask($data);
             $topCategory = $this->greaterStatus($data);
-
+        
             $performanceMessage = $completedTasks > 5
-                ? "Great job! You're already making good progress towards your goal, keep up the good work! 💪🔥"
-                : "Not enough yet... Try to devote more time to tasks, and you will succeed! 🚀";
-
-            $message = "📊 *Your statistic*\n\n" .
-                "✅ *Most popular category:* $topCategory\n\n" .
-                "⏳ *Average task completion time:* $averageTime\n\n" .
-                "🏆 *Completed task:* $completedTasks\n\n" .
-                "$performanceMessage\n\n" .
-                "Keep completing the tasks and you will see your progress! 💡\n\n" .
-                "To get a new task, use the command: `/give_task`";
+                ? "🔥 *Отличная работа!* Вы уже делаете хорошие шаги к своим целям — продолжайте в том же духе!"
+                : "🚀 Пока что мало выполненных задач... Постарайтесь выполнить несколько, и вы увидите прогресс!";
+        
+            $message = "📊 *Ваша статистика*\n\n" .
+                "✅ *Самая популярная категория:* {$topCategory}\n" .
+                "⏳ *Среднее время выполнения задачи:* {$averageTime}\n" .
+                "🏆 *Выполнено задач:* {$completedTasks}\n\n" .
+                "{$performanceMessage}\n\n" .
+                "💡 Продолжайте выполнять задачи и следите за своим прогрессом!\n\n" .
+                "Чтобы получить новую задачу, используйте команду: `/give_task`";
         }
-
+        
         $this->handleRequest($data, $message);
     }
 
     protected function averageExecutionTimeTask($data)
     {
         $user = User::where('telegram_id', $data['from']['id'])->first();
-        // $userTask = UserTask::where('user_id', $user->id)
-        //     ->whereNotNull('completed_at')
-        //     ->where('status', 'Completed')
-        //     ->get();
+        if (!$user) return "User not found";
 
-        // $difference = 0;
+        $userTasks = Task::where('owner_id', $user->telegram_id)
+            ->where('status', 'completed')
+            ->whereNotNull('completed_at')
+            ->get();
 
-        // if (count($userTask) > 0) {
-        //     foreach ($userTask as $task) {
-        //         $completedAt = Carbon::parse($task->completed_at);
-        //         $createdAt = Carbon::parse($task->created_at);
+        if ($userTasks->isEmpty()) {
+            return "No completed tasks yet";
+        }
 
-        //         $difference = $createdAt->diffInMinutes($completedAt);
-        //     }
+        $totalDifference = 0;
 
-        //     $averageTime = $difference / count($userTask);
-        // } else {
-        //     return null;
-        // }
+        foreach ($userTasks as $task) {
+            $createdAt = Carbon::parse($task->created_at);
+            $completedAt = Carbon::parse($task->completed_at);
+            $totalDifference += $createdAt->diffInMinutes($completedAt);
+        }
 
-        // Log::info($averageTime < 1
-        //     ? ($averageTime * 60) . " seconds"
-        //     : ($averageTime < 960
-        //         ? "$averageTime minutes"
-        //         : ($averageTime / 60) . " hours"
-        //     ));
-        // return $averageTime < 1
-        //     ? ($averageTime * 60) . " seconds"
-        //     : ($averageTime < 960
-        //         ? "$averageTime minutes"
-        //         : ($averageTime / 60) . " hours"
-        //     );
+        $averageMinutes = $totalDifference / $userTasks->count();
+
+        return $this->formatTime($averageMinutes);
     }
 
-    protected function countCompletedTask($data)
+    protected function formatTime(float $minutes): string
     {
-        // $user = User::where('telegram_id', $data['from']['id'])->first();
-        // $userTask = UserTask::where('user_id', $user->id)
-        //     ->where('status', 'сompleted')
-        //     ->get();
-        // return count($userTask);
+        if ($minutes < 1) {
+            return round($minutes * 60) . " seconds";
+        } elseif ($minutes < 60) {
+            return round($minutes) . " minutes";
+        } elseif ($minutes < 1440) {
+            $hours = floor($minutes / 60);
+            $mins = $minutes % 60;
+            return $mins > 0
+                ? "{$hours} h " . round($mins) . " min"
+                : "{$hours} h";
+        } else {
+            $days = floor($minutes / 1440);
+            $hours = round(($minutes % 1440) / 60);
+            return $hours > 0
+                ? "{$days} d {$hours} h"
+                : "{$days} d";
+        }
     }
 
-    protected function greaterStatus($data)
+    protected function countCompletedTask($data): int
     {
+        $user = User::where('telegram_id', $data['from']['id'])->first();
+        $userTasks = Task::where('owner_id', $user->telegram_id)
+            ->where('status', 'completed')
+            ->whereNotNull('completed_at')
+            ->get();
+        return count($userTasks);
+    }
+
+    protected function greaterStatus($data): ?string
+    {
+        $user = User::where('telegram_id', $data['from']['id'])->first();
+        if (!$user) return null;
+
         return Task::select('category')
-            ->where('owner_id', $data['from']['id'])
+            ->where('owner_id', $user->telegram_id)
+            ->where('status', 'completed')
             ->whereNotNull('completed_at')
             ->groupBy('category')
             ->orderByRaw('COUNT(*) DESC')
-            ->first()?->category;
+            ->first()?->category ?? 'Unknown';
     }
 }

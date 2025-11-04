@@ -221,9 +221,9 @@ class TelegramServices{
         }
 
         $data['param'] = $param;
-        $data['message_response'] = '*📋 Pending Tasks*
+        $data['message_response'] = "*📋 Ожидающие задачи*
 
-Choose a task from the list below to update its status to *completed*.'; // add page count or date range tasks
+Выберите задачу из списка ниже, чтобы отметить её как *выполненную* и отслеживать свой прогресс! ✅";
         return $data; 
     }
 
