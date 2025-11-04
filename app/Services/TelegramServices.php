@@ -136,8 +136,8 @@ class TelegramServices{
                     $formattedDateStart = $task->start_at?->format('M d, H:i');
                     $formattedDateEndAt = $task->end_at?->format('M d, H:i');
                     $datePart = $formattedDateStart ? " _(⏰ {$formattedDateStart})_" : '';
-                    $message .= "• {$this->escapeMarkdownV2($task->title)} _(⏰ {$formattedTimeStart}" 
-                                . ($formattedTimeEnd ? " - {$formattedTimeEnd}" : "") 
+                    $message .= "• {$this->escapeMarkdownV2($task->title)} " . $datePart 
+                                . ($formattedDateEndAt ? " - {$formattedDateEndAt}" : "") 
                                 . ")_\n";
                 }
             }
